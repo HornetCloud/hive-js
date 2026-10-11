@@ -1,0 +1,437 @@
+# HornetHive JS
+
+JavaScript and TypeScript client for [HornetHive](https://hornethive.io): managed PostgreSQL you reach by REST, GraphQL or MCP. A Supabase-like API for database operations.
+
+## Installation
+
+```bash
+npm install @hornetcloud/hive-js
+```
+
+## Quick Start
+
+```javascript
+import { createHiveClient } from '@hornetcloud/hive-js'
+
+const hive = createHiveClient({
+  apiUrl: 'https://yourdomain.com', // the app origin, without /api
+  apiKey: 'your-api-key'            // Settings → API Keys in the dashboard
+})
+```
+
+It runs in the browser and in Node 18+ (it uses the global `fetch`). In the
+browser the session token is kept in `localStorage`; elsewhere in memory, or
+pass your own `storage` (`getItem` / `setItem` / `removeItem`).
+
+Calling the data APIs from a browser needs your site's origin registered
+under **Origins** in the dashboard.
+
+## Authentication
+
+### Sign Up
+
+```javascript
+try {
+  const { user, token } = await hive.auth.signUp('user@example.com', 'password123', {
+    fullname: 'Jane Doe'
+  })
+  console.log('Signed up:', user)
+  // The session token is stored for you
+} catch (error) {
+  console.error('Sign up failed:', error.message)
+}
+```
+
+### Sign In
+
+```javascript
+try {
+  const { user, token } = await hive.auth.signIn('user@example.com', 'password123')
+  console.log('Signed in:', user)
+  // The session token is stored for you
+} catch (error) {
+  console.error('Sign in failed:', error.message)
+}
+```
+
+### Refresh
+
+A session token lasts 24 hours. Swap it for a fresh one before then:
+
+```javascript
+await hive.auth.refresh()
+```
+
+### Sign Out
+
+Ends the session on the server, on every device, and forgets the token:
+
+```javascript
+await hive.auth.signOut()
+```
+
+### Check Auth Status
+
+```javascript
+const token = hive.auth.getToken()
+if (token) {
+  console.log('User is authenticated')
+} else {
+  console.log('User is not authenticated')
+}
+```
+
+### Use API Key (Alternative to Auth)
+
+```javascript
+// Initialize with API key
+const hive = createHiveClient({
+  apiUrl: 'https://yourdomain.com',
+  apiKey: 'your-api-key'
+})
+
+// Or set it later
+hive.setApiKey('your-api-key')
+
+// Get current API key
+const apiKey = hive.getApiKey()
+```
+
+## Database Operations
+
+### Query Records
+
+```javascript
+// Get records (the first 10; use .limit() for up to 1000 per call)
+try {
+  const users = await hive.from('db-id').from('users').get()
+  console.log('Users:', users)
+} catch (error) {
+  console.error('Query failed:', error.message)
+}
+
+// Select specific columns
+const users = await hive.from('db-id')
+  .from('users')
+  .select('id, email, name')
+  .get()
+
+// Filter with eq() (multiple conditions are AND-ed)
+const activeUsers = await hive.from('db-id')
+  .from('users')
+  .eq('active', true)
+  .eq('plan', 'premium')
+  .get()
+
+// Order results (ASC by default, add DESC for reverse)
+const users = await hive.from('db-id')
+  .from('users')
+  .order('created_at', 'desc')
+  .get()
+
+// Pagination
+const page = 1
+const pageSize = 10
+const users = await hive.from('db-id')
+  .from('users')
+  .limit(pageSize)
+  .offset((page - 1) * pageSize)
+  .get()
+
+// Complex query with multiple filters
+const users = await hive.from('db-id')
+  .from('users')
+  .select('id, email, name, plan')
+  .eq('active', true)
+  .eq('plan', 'premium')
+  .order('created_at', 'desc')
+  .limit(10)
+  .offset(0)
+  .get()
+```
+
+### Insert Record
+
+```javascript
+try {
+  const newUser = await hive.from('db-id')
+    .from('users')
+    .insert({
+      email: 'user@example.com',
+      name: 'John Doe',
+      age: 30,
+      plan: 'free'
+    })
+  console.log('Created user:', newUser)
+} catch (error) {
+  console.error('Insert failed:', error.message)
+}
+```
+
+### Run SQL
+
+One statement, with `$1`, `$2`… parameters. With a key that has only the
+`read` scope it runs in a read-only transaction, so writes are refused.
+
+```javascript
+const { columns, rows } = await hive.from('db-id')
+  .sql('SELECT plan, count(*) AS n FROM users WHERE created_at > $1 GROUP BY plan', ['2026-01-01'])
+```
+
+### Update Record
+
+`update()`/`delete()` are bulk operations scoped by `.eq()` filters (like Supabase), not a positional id — at least one `.eq()` is required, otherwise the call throws before it ever hits the network (protects against accidentally updating/deleting every row).
+
+```javascript
+try {
+  const updated = await hive.from('db-id')
+    .from('users')
+    .eq('id', 'user-id')
+    .update({
+      name: 'Jane Doe',
+      age: 31,
+      plan: 'premium'
+    })
+  console.log('Updated users:', updated) // array — every row that matched
+} catch (error) {
+  console.error('Update failed:', error.message)
+}
+```
+
+### Delete Record
+
+```javascript
+try {
+  const { deleted } = await hive.from('db-id')
+    .from('users')
+    .eq('id', 'user-id')
+    .delete()
+  console.log(`${deleted} user(s) deleted`)
+} catch (error) {
+  console.error('Delete failed:', error.message)
+}
+```
+
+## Real-World Examples
+
+### Blog Application
+
+```javascript
+// Get published posts
+const posts = await hive.from('db-id')
+  .from('posts')
+  .eq('published', true)
+  .order('created_at', 'desc')
+  .get()
+
+// Create new post
+const newPost = await hive.from('db-id')
+  .from('posts')
+  .insert({
+    title: 'My First Post',
+    content: 'Hello world!',
+    author_id: 'user-id',
+    published: false
+  })
+
+// Publish post
+await hive.from('db-id')
+  .from('posts')
+  .eq('id', 'post-id')
+  .update({ published: true })
+
+// Get posts by author
+const authorPosts = await hive.from('db-id')
+  .from('posts')
+  .eq('author_id', 'user-id')
+  .order('created_at', 'desc')
+  .get()
+```
+
+### E-commerce Application
+
+```javascript
+// Get active products
+const products = await hive.from('db-id')
+  .from('products')
+  .eq('active', true)
+  .eq('in_stock', true)
+  .order('price', 'asc')
+  .limit(20)
+  .get()
+
+// Create order
+const order = await hive.from('db-id')
+  .from('orders')
+  .insert({
+    user_id: 'user-id',
+    total: 99.99,
+    status: 'pending'
+  })
+
+// Get user's orders
+const userOrders = await hive.from('db-id')
+  .from('orders')
+  .eq('user_id', 'user-id')
+  .order('created_at', 'desc')
+  .get()
+
+// Update order status
+await hive.from('db-id')
+  .from('orders')
+  .eq('id', 'order-id')
+  .update({ status: 'completed' })
+```
+
+### User Management
+
+```javascript
+// Get active users
+const activeUsers = await hive.from('db-id')
+  .from('users')
+  .eq('active', true)
+  .eq('verified', true)
+  .get()
+
+// Search users by email
+const users = await hive.from('db-id')
+  .from('users')
+  .eq('email', 'user@example.com')
+  .get()
+
+// Update user profile
+await hive.from('db-id')
+  .from('users')
+  .eq('id', 'user-id')
+  .update({
+    name: 'New Name',
+    bio: 'Updated bio',
+    avatar_url: 'https://example.com/avatar.jpg'
+  })
+```
+
+## Error Handling
+
+Failed calls throw `HiveError`, with the HTTP `status` and the API's message:
+
+```javascript
+import { HiveError } from '@hornetcloud/hive-js'
+
+try {
+  const users = await hive.from('db-id').from('users').get()
+} catch (error) {
+  if (error instanceof HiveError) {
+    switch (error.status) {
+      case 401: // invalid or deactivated API key
+      case 403: // missing scope, plan feature, wrong database, or suspended database
+      case 404: // database not found (or not yours)
+      case 429: // rate limit or monthly invocation limit
+    }
+  }
+  console.error(error.message)
+}
+```
+
+## Best Practices
+
+### 1. Use try-catch for all async operations
+
+```javascript
+try {
+  const result = await hive.from('db-id').from('users').get()
+} catch (error) {
+  console.error('Operation failed:', error.message)
+}
+```
+
+### 2. Chain methods for cleaner code
+
+```javascript
+// Good
+const users = await hive.from('db-id')
+  .from('users')
+  .eq('active', true)
+  .order('created_at', 'desc')
+  .limit(10)
+  .get()
+
+// Avoid multiple calls
+const users = await hive.from('db-id').from('users').get()
+// Then filter in JS (inefficient)
+```
+
+### 3. Select only needed columns
+
+```javascript
+// Good - only fetch what you need
+const users = await hive.from('db-id')
+  .from('users')
+  .select('id, email')
+  .get()
+
+// Avoid - fetches all columns
+const users = await hive.from('db-id')
+  .from('users')
+  .select('*')
+  .get()
+```
+
+### 4. Use pagination for large datasets
+
+```javascript
+const pageSize = 50
+let page = 1
+let hasMore = true
+
+while (hasMore) {
+  const users = await hive.from('db-id')
+    .from('users')
+    .limit(pageSize)
+    .offset((page - 1) * pageSize)
+    .get()
+
+  if (users.length < pageSize) {
+    hasMore = false
+  }
+
+  page++
+}
+```
+
+## Limitations
+
+- **No table joins** - one table per call. Use `.sql()` or GraphQL (`/api/graphql/<db-id>`) for joins.
+- **Basic filters only** - only `eq()`. Use `.sql()` for anything else.
+- **No realtime subscriptions.**
+- **At most 1000 rows per call** - page with `.limit()` and `.offset()`.
+- **`update()`/`delete()` are bulk operations** - scoped by `.eq()` filters, not a single row id. They match (and affect) every row satisfying the filters, and require at least one `.eq()` call — there is no "update/delete everything" shortcut.
+
+## Migration from Supabase
+
+Hive provides a similar API to Supabase for easy migration:
+
+**Supabase:**
+```javascript
+const { data } = await supabase
+  .from('users')
+  .select('*')
+  .eq('active', true)
+```
+
+**Hive:**
+```javascript
+const users = await hive.from('db-id')
+  .from('users')
+  .select('*')
+  .eq('active', true)
+  .get()
+```
+
+**Key differences:**
+- Hive requires database ID: `hive.from('db-id').from('table')`
+- Hive uses `.get()` to execute query
+- Hive API key instead of Supabase anon key
+
+## License
+
+MIT
