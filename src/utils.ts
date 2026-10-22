@@ -53,12 +53,12 @@ export interface Storage {
 }
 
 /**
- * defaultStorage keeps the session token in memory, everywhere. The token
+ * memoryStorage keeps the session token in memory, everywhere. The token
  * signs in to the whole Hive account, so it is not written to localStorage,
  * where any script on the page could read it; a page that wants it to
  * survive a reload passes `storage: localStorage` and takes that on.
  */
-export function defaultStorage(): Storage {
+export function memoryStorage(): Storage {
   const memory = new Map<string, string>()
   return {
     getItem: (key) => memory.get(key) ?? null,

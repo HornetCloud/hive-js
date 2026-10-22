@@ -1,5 +1,5 @@
 import { HiveConfig, AuthResponse, SignUpOptions } from './types'
-import { apiBase, defaultStorage, request, Storage } from './utils'
+import { apiBase, memoryStorage, request, Storage } from './utils'
 
 const TOKEN_KEY = 'hive_token'
 
@@ -14,7 +14,10 @@ export class Auth {
 
   constructor(config: HiveConfig) {
     this.config = config
-    this.storage = config.storage ?? defaultStorage()
+    // In memory unless the caller chooses otherwise: the token signs in to
+    // the whole account, so it is not left in localStorage for any script on
+    // the page to read.
+    this.storage = config.storage ?? memoryStorage()
     this.token = this.storage.getItem(TOKEN_KEY)
   }
 

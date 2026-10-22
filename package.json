@@ -1,6 +1,6 @@
 {
   "name": "@hornetcloud/hive-js",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "JavaScript and TypeScript client for HornetHive: managed PostgreSQL with REST, GraphQL and MCP",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
