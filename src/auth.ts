@@ -22,7 +22,7 @@ export class Auth {
     const data = await request<AuthResponse>(`${apiBase(this.config.apiUrl)}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, fullname: options.fullname }),
+      body: JSON.stringify({ email, password, fullname: options.fullname, accept_terms: options.acceptTerms === true }),
     }, 'Sign up failed')
     this.setToken(data.token)
     return data

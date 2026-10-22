@@ -24,6 +24,11 @@ export interface User {
 export interface SignUpOptions {
   /** The account holder's name. Required by the API. */
   fullname: string
+  /**
+   * That the account holder agrees to the Terms of Use and Privacy Policy
+   * (https://hornethive.io/terms, /privacy). Required by the API: ask them first.
+   */
+  acceptTerms: true
 }
 
 export interface DatabaseQuery {

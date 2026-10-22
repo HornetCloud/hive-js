@@ -33,7 +33,8 @@ under **Origins** in the dashboard.
 ```javascript
 try {
   const { user, token } = await hive.auth.signUp('user@example.com', 'password123', {
-    fullname: 'Jane Doe'
+    fullname: 'Jane Doe',
+    acceptTerms: true // they agreed to https://hornethive.io/terms and /privacy
   })
   console.log('Signed up:', user)
   // The session token is stored for you
