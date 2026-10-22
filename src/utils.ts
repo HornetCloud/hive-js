@@ -53,17 +53,12 @@ export interface Storage {
 }
 
 /**
- * defaultStorage is localStorage in a browser and an in-memory map
- * elsewhere (Node, workers), so the client can be created on a server.
+ * defaultStorage keeps the session token in memory, everywhere. The token
+ * signs in to the whole Hive account, so it is not written to localStorage,
+ * where any script on the page could read it; a page that wants it to
+ * survive a reload passes `storage: localStorage` and takes that on.
  */
 export function defaultStorage(): Storage {
-  try {
-    if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis && globalThis.localStorage) {
-      return globalThis.localStorage
-    }
-  } catch {
-    // Accessing localStorage can throw (blocked cookies, sandboxed iframes).
-  }
   const memory = new Map<string, string>()
   return {
     getItem: (key) => memory.get(key) ?? null,

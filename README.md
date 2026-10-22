@@ -19,9 +19,13 @@ const hive = createHiveClient({
 })
 ```
 
-It runs in the browser and in Node 18+ (it uses the global `fetch`). In the
-browser the session token is kept in `localStorage`; elsewhere in memory, or
-pass your own `storage` (`getItem` / `setItem` / `removeItem`).
+It runs in the browser and in Node 18+ (it uses the global `fetch`). The
+session token is kept in memory, so it is gone when the page reloads or the
+process ends. It signs in to the whole Hive account, which is why it is not
+written to `localStorage` by default, where any script on the page can read
+it. To keep it anyway, pass your own `storage` (`getItem` / `setItem` /
+`removeItem`), for example `storage: localStorage` (since 1.3.0; before, the
+browser default was `localStorage`).
 
 Calling the data APIs from a browser needs your site's origin registered
 under **Origins** in the dashboard.

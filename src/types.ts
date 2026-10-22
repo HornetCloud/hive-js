@@ -5,7 +5,7 @@ export interface HiveConfig {
   apiUrl: string
   /** API key for the data APIs. Create one in the dashboard under Settings. */
   apiKey?: string
-  /** Where the session token is kept. Defaults to localStorage in a browser, memory elsewhere. */
+  /** Where the session token is kept. Defaults to memory: pass `localStorage` to keep it across reloads. */
   storage?: Storage
 }
 
