@@ -8,6 +8,14 @@ JavaScript and TypeScript client for [HornetHive](https://hornethive.io): manage
 npm install @hornetcloud/hive-js
 ```
 
+
+## What changed
+
+Every release, and what to do on upgrading, is in
+[CHANGELOG.md](https://github.com/HornetCloud/hive-js/blob/main/CHANGELOG.md).
+1.4 is the one to know: the API moved to `https://api.hornethive.io/v1`, and
+the old address stops on 7 November 2026.
+
 ## Quick Start
 
 ```javascript
