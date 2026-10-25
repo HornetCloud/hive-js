@@ -14,10 +14,16 @@ npm install @hornetcloud/hive-js
 import { createHiveClient } from '@hornetcloud/hive-js'
 
 const hive = createHiveClient({
-  apiUrl: 'https://yourdomain.com', // the app origin, without /api
-  apiKey: 'your-api-key'            // Settings → API Keys in the dashboard
+  apiUrl: 'https://api.hornethive.io', // self-hosted: your app origin, without /api
+  apiKey: 'your-api-key'               // Settings → API Keys in the dashboard
 })
 ```
+
+Since 1.4, an `apiUrl` whose host starts with `api.` is the API's own host:
+`/v1` is added when the URL has no path, and a path you give (`/v1`) is kept.
+Any other URL is an app origin, and `/api` is added to it. Before 1.4 the URL was
+always an app origin (`https://hornethive.io`); HornetHive answers there
+with a `Deprecation` header until the date in its `Sunset` header.
 
 It runs in the browser and in Node 18+ (it uses the global `fetch`). The
 session token is kept in memory, so it is gone when the page reloads or the
@@ -91,7 +97,7 @@ if (token) {
 ```javascript
 // Initialize with API key
 const hive = createHiveClient({
-  apiUrl: 'https://yourdomain.com',
+  apiUrl: 'https://api.hornethive.io',
   apiKey: 'your-api-key'
 })
 
@@ -121,18 +127,42 @@ const users = await hive.from('db-id')
   .select('id, email, name')
   .get()
 
-// Filter with eq() (multiple conditions are AND-ed)
+// Filter (multiple conditions are AND-ed)
 const activeUsers = await hive.from('db-id')
   .from('users')
   .eq('active', true)
   .eq('plan', 'premium')
   .get()
 
-// Order results (ASC by default, add DESC for reverse)
+// Every operator: eq, neq, gt, gte, lt, lte, like, ilike (* is the wildcard),
+// match, imatch, in, is, contains, containedBy, overlaps, textSearch, not
+const recent = await hive.from('db-id')
+  .from('orders')
+  .gte('total', 100)
+  .lt('created_at', '2026-11-01')
+  .in('status', ['paid', 'shipped'])
+  .not('deleted_at', 'is', null)
+  .textSearch('note', 'urgent & refund', { config: 'english' })
+  .get()
+
+// OR, in the REST API's syntax; groups nest with and(…) and or(…)
+const either = await hive.from('db-id')
+  .from('users')
+  .or('age.lt.18,age.gt.65,and(member.is.true,plan.eq.pro)')
+  .get()
+
+// Order results (ASC by default); call order() again to sort by more
 const users = await hive.from('db-id')
   .from('users')
-  .order('created_at', 'desc')
+  .order('plan')
+  .order('created_at', { ascending: false, nullsFirst: false })
   .get()
+
+// The rows and how many match in all, for paging
+const { rows, count } = await hive.from('db-id')
+  .from('users')
+  .limit(20)
+  .getWithCount()
 
 // Pagination
 const page = 1
@@ -173,6 +203,45 @@ try {
 }
 ```
 
+### Insert Many, and Upsert
+
+```javascript
+// An array is inserted in one statement and returned as an array
+const books = await hive.from('db-id').from('books').insert([
+  { title: 'Dune', year: 1965 },
+  { title: 'Ubik', year: 1969 },
+])
+
+// Update rows whose key exists, insert the rest. The key is the primary key
+// unless onConflict names other unique columns; ignoreDuplicates skips them.
+await hive.from('db-id').from('members').upsert(
+  [{ email: 'aina@example.my', plan: 'pro' }],
+  { onConflict: 'email' },
+)
+```
+
+### Call a Function
+
+Named arguments. A set-returning function gives rows, a scalar its value.
+With a read-only key it runs read-only.
+
+```javascript
+const top = await hive.from('db-id').rpc('top_books', { n: 5 })
+```
+
+### Another Schema
+
+```javascript
+const orders = await hive.from('db-id').schema('shop').from('orders').get()
+```
+
+### OpenAPI
+
+```javascript
+// OpenAPI 3.1 for the database's tables and functions, built from its schema
+const spec = await hive.from('db-id').openapi()
+```
+
 ### Run SQL
 
 One statement, with `$1`, `$2`… parameters. With a key that has only the
@@ -185,7 +254,7 @@ const { columns, rows } = await hive.from('db-id')
 
 ### Update Record
 
-`update()`/`delete()` are bulk operations scoped by `.eq()` filters (like Supabase), not a positional id — at least one `.eq()` is required, otherwise the call throws before it ever hits the network (protects against accidentally updating/deleting every row).
+`update()`/`delete()` are bulk operations scoped by filters (like Supabase), not a positional id — at least one filter (`.eq()`, `.in()`, `.or()`…) is required, otherwise the call throws before it ever hits the network (protects against accidentally updating/deleting every row).
 
 ```javascript
 try {
