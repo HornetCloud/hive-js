@@ -98,6 +98,9 @@ if (token) {
 } else {
   console.log('User is not authenticated')
 }
+
+// A token you already hold, such as one your server issued earlier
+hive.auth.setToken(savedToken)
 ```
 
 ### Use API Key (Alternative to Auth)

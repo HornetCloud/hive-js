@@ -9,8 +9,10 @@ code working; a major version would say what breaks.
 - This changelog, in the package and linked from the README.
 - README: the Limitations section no longer says only `eq()` is supported;
   paging uses `getWithCount()`; the Supabase notes list the shared filter
-  names.
-- No code change.
+  names; `setToken()` is described.
+- `npm publish` first runs `check-docs`, which refuses a release whose README,
+  CHANGELOG or website docs miss a method or the version.
+- No change to the client's code.
 
 ## 1.4.0 (2026-10-25)
 
