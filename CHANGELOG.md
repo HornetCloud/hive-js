@@ -6,7 +6,11 @@ code working; a major version would say what breaks.
 
 ## 1.4.1 (2026-10-25)
 
-- This changelog, in the package and linked from the README. No code change.
+- This changelog, in the package and linked from the README.
+- README: the Limitations section no longer says only `eq()` is supported;
+  paging uses `getWithCount()`; the Supabase notes list the shared filter
+  names.
+- No code change.
 
 ## 1.4.0 (2026-10-25)
 

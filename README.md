@@ -375,10 +375,10 @@ const activeUsers = await hive.from('db-id')
   .eq('verified', true)
   .get()
 
-// Search users by email
+// Search users by email, ignoring case
 const users = await hive.from('db-id')
   .from('users')
-  .eq('email', 'user@example.com')
+  .ilike('email', '*@example.com')
   .get()
 
 // Update user profile
@@ -462,31 +462,30 @@ const users = await hive.from('db-id')
 
 ```javascript
 const pageSize = 50
-let page = 1
-let hasMore = true
+const page = 3
 
-while (hasMore) {
-  const users = await hive.from('db-id')
-    .from('users')
-    .limit(pageSize)
-    .offset((page - 1) * pageSize)
-    .get()
+const { rows, count } = await hive.from('db-id')
+  .from('users')
+  .order('id')
+  .limit(pageSize)
+  .offset((page - 1) * pageSize)
+  .getWithCount()
 
-  if (users.length < pageSize) {
-    hasMore = false
-  }
-
-  page++
-}
+const pages = Math.ceil(count / pageSize)
 ```
 
 ## Limitations
 
-- **No table joins** - one table per call. Use `.sql()` or GraphQL (`/api/graphql/<db-id>`) for joins.
-- **Basic filters only** - only `eq()`. Use `.sql()` for anything else.
+- **No joins in one call** - each query reads one table or view. Join in a
+  view, a function (`.rpc()`) or `.sql()`. GraphQL does not follow foreign
+  keys either.
 - **No realtime subscriptions.**
-- **At most 1000 rows per call** - page with `.limit()` and `.offset()`.
-- **`update()`/`delete()` are bulk operations** - scoped by `.eq()` filters, not a single row id. They match (and affect) every row satisfying the filters, and require at least one `.eq()` call — there is no "update/delete everything" shortcut.
+- **At most 1000 rows per call** - page with `.limit()` and `.offset()`, and
+  `getWithCount()` for the total.
+- **`update()`/`delete()` are bulk operations** - scoped by filters, not a
+  single row id. They affect every row matching the filters and need at least
+  one filter (`.eq()`, `.in()`, `.or()`…): there is no "update/delete
+  everything" shortcut.
 
 ## Migration from Supabase
 
@@ -511,7 +510,11 @@ const users = await hive.from('db-id')
 
 **Key differences:**
 - Hive requires database ID: `hive.from('db-id').from('table')`
-- Hive uses `.get()` to execute query
+- Hive uses `.get()` (or `getWithCount()`) to execute a query, and returns the
+  rows themselves rather than `{ data, error }`; a failure throws `HiveError`
+- The filters have the same names (`eq`, `gt`, `in`, `ilike`, `or`, `not`…),
+  as do `upsert()` and `rpc()`. Embedded relations (`select('*, orders(*)')`)
+  are not supported
 - Hive API key instead of Supabase anon key
 
 ## License
